@@ -99,6 +99,19 @@ var startCmd = &cobra.Command{
 			current.RemainingSeconds = remaining
 			return state.Save(current)
 		}
+		pauseCheck := func() (bool, bool, error) {
+			latest, err := state.Load()
+			if err != nil {
+				return false, true, err
+			}
+			if latest == nil {
+				return false, false, nil
+			}
+			if !latest.Running {
+				return false, false, nil
+			}
+			return latest.Paused, latest.Running, nil
+		}
 
 		remaining, completed, err := timer.RunCountdown(
 			ctx,
@@ -106,6 +119,7 @@ var startCmd = &cobra.Command{
 			onTick,
 			persistEverySeconds,
 			onPersist,
+			pauseCheck,
 		)
 		if err != nil && err != context.Canceled {
 			return fmt.Errorf("countdown: %w", err)

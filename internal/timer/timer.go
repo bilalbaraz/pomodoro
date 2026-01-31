@@ -14,6 +14,7 @@ func RunCountdown(
 	onTick func(remaining int),
 	persistEvery int,
 	onPersist func(remaining int) error,
+	pauseCheck func() (paused bool, running bool, err error),
 ) (int, bool, error) {
 	if totalSeconds < 0 {
 		return 0, false, fmt.Errorf("totalSeconds must be >= 0")
@@ -30,6 +31,22 @@ func RunCountdown(
 		case <-ctx.Done():
 			return remaining, false, ctx.Err()
 		case <-ticker.C:
+			if pauseCheck != nil {
+				paused, running, err := pauseCheck()
+				if err != nil {
+					return remaining, false, err
+				}
+				if !running {
+					return remaining, false, nil
+				}
+				if paused {
+					if onTick != nil {
+						onTick(remaining)
+					}
+					continue
+				}
+			}
+
 			remaining--
 			if remaining < 0 {
 				return 0, true, nil
